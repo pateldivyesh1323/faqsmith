@@ -3,14 +3,22 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
-import { Sun, Moon } from "lucide-react";
+import { Sun, Moon, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import GithubIcon from "./icons/github";
+import axios, { AxiosError } from "axios";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 export default function Home() {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [faqQuestions, setFaqQuestions] = useState<string[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isDark, setIsDark] = useState(false);
+    const [generationStatus, setGenerationStatus] = useState<
+        | { type: "idle" }
+        | { type: "generating" }
+        | { type: "success"; message: string }
+        | { type: "error"; message: string }
+    >({ type: "idle" });
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -31,22 +39,46 @@ export default function Home() {
         }
     };
 
-    const handleUpload = () => {
-        if (selectedFile) {
+    const handleUpload = async () => {
+        try {
             setIsLoading(true);
-            console.log("Uploading file:", selectedFile.name);
-            setTimeout(() => {
-                setFaqQuestions([
-                    "Q1: What is the return policy?",
-                    "Q2: How do I track my order?",
-                    "Q3: What payment methods are accepted?",
-                    "Q4: Can I return a digital product?",
-                    "Q5: How long does shipping take?",
-                ]);
-                setIsLoading(false);
-            }, 2000);
-        } else {
-            alert("Please select a file first.");
+            setGenerationStatus({ type: "generating" });
+            if (selectedFile) {
+                const formData = new FormData();
+                formData.append("file", selectedFile);
+
+                const response = await axios.post(
+                    "/api/generate-faq",
+                    formData,
+                    {
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                        },
+                    }
+                );
+
+                setFaqQuestions(response.data.questions);
+                setGenerationStatus({
+                    type: "success",
+                    message: "FAQs generated successfully!",
+                });
+            } else {
+                setGenerationStatus({
+                    type: "error",
+                    message: "Please select a file first.",
+                });
+            }
+        } catch (error) {
+            console.error("Error uploading file:", error);
+            setGenerationStatus({
+                type: "error",
+                message:
+                    error instanceof AxiosError
+                        ? error.response?.data.error
+                        : "Error uploading file. Please try again.",
+            });
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -132,6 +164,45 @@ export default function Home() {
                     >
                         {isLoading ? "Generating..." : "Generate FAQs"}
                     </Button>
+
+                    {generationStatus.type !== "idle" && (
+                        <Alert
+                            variant={
+                                generationStatus.type === "error"
+                                    ? "destructive"
+                                    : "default"
+                            }
+                            className={`mb-6 ${
+                                generationStatus.type === "generating"
+                                    ? "bg-yellow-100 dark:bg-yellow-900"
+                                    : generationStatus.type === "success"
+                                    ? "bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400"
+                                    : "bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400"
+                            }`}
+                        >
+                            {generationStatus.type === "generating" && (
+                                <Loader2 className="animate-spin text-yellow-600 dark:text-yellow-400" />
+                            )}
+                            {generationStatus.type === "success" && (
+                                <CheckCircle2 className="text-green-600 dark:text-green-400" />
+                            )}
+                            {generationStatus.type === "error" && (
+                                <AlertCircle className="text-red-600 dark:text-red-400" />
+                            )}
+                            <AlertTitle>
+                                {generationStatus.type === "generating"
+                                    ? "Generating FAQs..."
+                                    : generationStatus.type === "success"
+                                    ? "Success!"
+                                    : "Error"}
+                            </AlertTitle>
+                            <AlertDescription className="text-black dark:text-white">
+                                {generationStatus.type === "generating"
+                                    ? "Please wait while we generate your FAQs."
+                                    : generationStatus.message}
+                            </AlertDescription>
+                        </Alert>
+                    )}
                 </div>
 
                 {faqQuestions.length > 0 && (

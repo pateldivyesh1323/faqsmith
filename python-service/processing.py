@@ -11,18 +11,28 @@ def combine_content(df):
     df["combined_content"] = df["Subject"].fillna("").astype(str) + " " + df["Body"].fillna("").astype(str)
     return df
 
-def embed_content(contents):
-    content_chunks = [contents[i:i+100] for i in range(0, len(contents), 100)]
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+def embed_content(contents, batch_size=100, max_workers=5):
+    content_chunks = [contents[i:i+batch_size] for i in range(0, len(contents), batch_size)]
     embeddings = []
 
-    for chunk in content_chunks:
-        result = client.models.embed_content(
+    def embed_chunk(chunk):
+        return client.models.embed_content(
             model="gemini-embedding-001",
             contents=chunk
-        )
-        embeddings.extend(result.embeddings)
+        ).embeddings
     
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(embed_chunk, chunk) for chunk in content_chunks]
+        for future in as_completed(futures):
+            try:
+                embeddings.extend(future.result())
+            except Exception as e:
+                print(f"Embedding chunk failed: {e}")
+
     return embeddings
+
 
 def kmeans_clustering(embeddings):
     num_clusters = min(5, len(embeddings))
@@ -46,7 +56,7 @@ Messages:
 
 Output only the question without explanations."""
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-2.5-flash-lite",
         contents=prompt
     )
     return response.text
