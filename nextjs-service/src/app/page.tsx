@@ -143,6 +143,26 @@ export default function Home() {
 
                 <div className="space-y-6">
                     <div className="grid w-full items-center gap-2">
+                        <div className="p-4 rounded-md bg-yellow-100 dark:bg-yellow-900 text-black dark:text-white text-sm mb-4">
+                            <h3 className="font-semibold mb-2">
+                                Excel File Requirements:
+                            </h3>
+                            <ul className="list-disc pl-5 space-y-1">
+                                <li>The file should not be empty</li>
+                                <li>
+                                    Must contain columns named{" "}
+                                    <span className="font-mono">
+                                        &quot;Subject&quot;
+                                    </span>{" "}
+                                    and{" "}
+                                    <span className="font-mono">
+                                        &quot;Body&quot;
+                                    </span>
+                                </li>
+                                <li>Row count should not exceed 50 rows</li>
+                            </ul>
+                        </div>
+
                         <label
                             htmlFor="file"
                             className="text-sm font-medium leading-none"
